@@ -43,6 +43,11 @@ export const getNearbyUsers = async (lat, lon) => {
       `${BASE_URL}/nearby?lat=${lat}&lon=${lon}&radius=5`
     );
 
+    if (!res.ok) {
+      console.error("API Error:", res.status);
+      return [];
+    }
+
     return await res.json();
   } catch (err) {
     console.error("Nearby error:", err);
@@ -66,4 +71,20 @@ export const updateLocation = async (id, location) => {
     console.error("Location update error:", err);
     return null;
   }
+};
+
+export const swipeUser = async (userId, targetUserId, action) => {
+  const res = await fetch("http://localhost:8080/api/swipe", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      userId,
+      targetUserId,
+      action,
+    }),
+  });
+
+  return res.text();
 };
