@@ -1,40 +1,74 @@
 package com.nearconnect.backend.controller;
 
+import com.nearconnect.backend.dto.*;
 import com.nearconnect.backend.model.User;
+import com.nearconnect.backend.service.AuthService;
 import com.nearconnect.backend.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List; // ✅ ADD THIS
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final AuthService authService;
+    private final UserService userService;
+
+    public UserController(AuthService authService, UserService userService) {
+        this.authService = authService;
+        this.userService = userService;
+    }
 
     @PostMapping("/register")
-    public User register(@RequestBody User user) {
-        return userService.register(user);
+    @ResponseStatus(HttpStatus.CREATED)
+    public AuthResponse register(@RequestBody RegisterRequest request) {
+        return authService.register(request);
     }
 
     @PostMapping("/login")
-    public User login(@RequestBody User user) {
-        return userService.login(user.getEmail(), user.getPassword());
+    public AuthResponse login(@RequestBody AuthRequest request) {
+        return authService.login(request);
     }
 
-    @PutMapping("/location/{id}")
-    public User updateLocation(@PathVariable Long id, @RequestBody User updatedUser) {
-        return userService.updateLocation(id, updatedUser);
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        authService.logout(authorization);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    public UserView me(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return UserView.from(authService.requireUser(authorization));
+    }
+
+    @PutMapping("/me/location")
+    public UserView updateLocation(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody LocationRequest request) {
+        return userService.updateLocation(authService.requireUser(authorization), request);
+    }
+
+    @PutMapping("/me/profile")
+    public UserView updateProfile(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody ProfileUpdateRequest request) {
+        return userService.updateProfile(authService.requireUser(authorization), request);
     }
 
     @GetMapping("/nearby")
-    public List<User> getNearbyUsers(
-            @RequestParam Long userId,
-            @RequestParam Double lat,
-            @RequestParam Double lon,
-            @RequestParam(defaultValue = "5") Double radius) {
-        return userService.findNearbyUsers(userId, lat, lon, radius);
+    public List<UserView> getNearbyUsers(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(defaultValue = "10") double radius) {
+        User currentUser = authService.requireUser(authorization);
+        return userService.findNearbyUsers(currentUser, radius);
+    }
+
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        return Map.of("status", "UP", "service", "near-connect");
     }
 }

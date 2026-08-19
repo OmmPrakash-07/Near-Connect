@@ -1,0 +1,16 @@
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Backend
+backend/target/
+backend/data/
+backend/*.log
+
+# Editors and OS
+.idea/
+.DS_Store
+Thumbs.db
+*.iml

@@ -1,30 +1,38 @@
 package com.nearconnect.backend.controller;
 
+import com.nearconnect.backend.dto.MessageRequest;
 import com.nearconnect.backend.model.Message;
+import com.nearconnect.backend.service.AuthService;
 import com.nearconnect.backend.service.MessageService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/messages")
-@CrossOrigin
 public class MessageController {
 
-    @Autowired
-    private MessageService messageService;
+    private final MessageService messageService;
+    private final AuthService authService;
 
-    @PostMapping("/send")
-    public Message sendMessage(@RequestBody Message message) {
-        return messageService.sendMessage(message);
+    public MessageController(MessageService messageService, AuthService authService) {
+        this.messageService = messageService;
+        this.authService = authService;
     }
 
-    @GetMapping("/chat")
-    public List<Message> getChat(
-            @RequestParam Long user1,
-            @RequestParam Long user2
-    ) {
-        return messageService.getChat(user1, user2);
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Message sendMessage(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody MessageRequest request) {
+        return messageService.sendMessage(authService.requireUser(authorization), request);
+    }
+
+    @GetMapping
+    public List<Message> getConversation(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam Long withUserId) {
+        return messageService.getConversation(authService.requireUser(authorization), withUserId);
     }
 }

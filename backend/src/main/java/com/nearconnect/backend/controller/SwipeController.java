@@ -1,24 +1,27 @@
 package com.nearconnect.backend.controller;
 
-import com.nearconnect.backend.model.Swipe;
+import com.nearconnect.backend.dto.SwipeRequest;
+import com.nearconnect.backend.dto.SwipeResult;
+import com.nearconnect.backend.service.AuthService;
 import com.nearconnect.backend.service.SwipeService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/swipe")
-@CrossOrigin
+@RequestMapping("/api/swipes")
 public class SwipeController {
 
-    @Autowired
-    private SwipeService swipeService;
+    private final SwipeService swipeService;
+    private final AuthService authService;
+
+    public SwipeController(SwipeService swipeService, AuthService authService) {
+        this.swipeService = swipeService;
+        this.authService = authService;
+    }
 
     @PostMapping
-    public String swipe(@RequestBody Swipe swipe) {
-    return swipeService.swipe(
-        swipe.getUserId(),
-        swipe.getTargetUserId(),
-        swipe.getAction()
-    );
-}
+    public SwipeResult swipe(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody SwipeRequest request) {
+        return swipeService.swipe(authService.requireUser(authorization), request);
+    }
 }

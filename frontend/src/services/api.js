@@ -1,90 +1,61 @@
-const BASE_URL = "http://localhost:8080/api/users";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+const SESSION_KEY = "near-connect-session";
 
-// ✅ LOGIN
-export const loginUser = async (user) => {
+export function getStoredSession() {
   try {
-    const res = await fetch(`${BASE_URL}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(user),
-    });
-
-    return await res.json();
-  } catch (err) {
-    console.error("Login error:", err);
+    return JSON.parse(localStorage.getItem(SESSION_KEY));
+  } catch {
     return null;
   }
-};
+}
 
-// ✅ REGISTER
-export const registerUser = async (user) => {
+export function storeSession(session) {
+  if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  else localStorage.removeItem(SESSION_KEY);
+}
+
+async function request(path, options = {}) {
+  const session = getStoredSession();
+  const headers = { ...(options.headers || {}) };
+  if (options.body) headers["Content-Type"] = "application/json";
+  if (session?.token) headers.Authorization = `Bearer ${session.token}`;
+
+  let response;
   try {
-    const res = await fetch(`${BASE_URL}/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(user),
-    });
-
-    return await res.json();
-  } catch (err) {
-    console.error("Register error:", err);
-    return null;
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    throw new Error("Cannot reach the Near Connect server. Start the backend and try again.");
   }
-};
 
-// ✅ GET NEARBY USERS
-export const getNearbyUsers = async (lat, lon) => {
-  try {
-    const res = await fetch(
-      `${BASE_URL}/nearby?lat=${lat}&lon=${lon}&radius=5`
-    );
+  if (response.status === 204) return null;
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
 
-    if (!res.ok) {
-      console.error("API Error:", res.status);
-      return [];
-    }
-
-    return await res.json();
-  } catch (err) {
-    console.error("Nearby error:", err);
-    return [];
+  if (!response.ok) {
+    if (response.status === 401) storeSession(null);
+    throw new Error(data?.message || data || "The request could not be completed.");
   }
-};
+  return data;
+}
 
-// ✅ UPDATE LOCATION
-export const updateLocation = async (id, location) => {
-  try {
-    const res = await fetch(`${BASE_URL}/location/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(location),
-    });
-
-    return await res.json();
-  } catch (err) {
-    console.error("Location update error:", err);
-    return null;
-  }
-};
-
-export const swipeUser = async (userId, targetUserId, action) => {
-  const res = await fetch("http://localhost:8080/api/swipe", {
+export const api = {
+  login: (payload) => request("/users/login", { method: "POST", body: JSON.stringify(payload) }),
+  register: (payload) => request("/users/register", { method: "POST", body: JSON.stringify(payload) }),
+  logout: () => request("/users/logout", { method: "POST" }),
+  me: () => request("/users/me"),
+  updateLocation: (payload) => request("/users/me/location", { method: "PUT", body: JSON.stringify(payload) }),
+  updateProfile: (payload) => request("/users/me/profile", { method: "PUT", body: JSON.stringify(payload) }),
+  nearby: (radius = 10) => request(`/users/nearby?radius=${encodeURIComponent(radius)}`),
+  swipe: (targetUserId, action) => request("/swipes", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      userId,
-      targetUserId,
-      action,
-    }),
-  });
-
-  return res.text();
+    body: JSON.stringify({ targetUserId, action }),
+  }),
+  matches: () => request("/matches"),
+  messages: (withUserId) => request(`/messages?withUserId=${encodeURIComponent(withUserId)}`),
+  sendMessage: (receiverId, message) => request("/messages", {
+    method: "POST",
+    body: JSON.stringify({ receiverId, message }),
+  }),
 };
