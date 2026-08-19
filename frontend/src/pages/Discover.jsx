@@ -32,7 +32,7 @@ export default function Discover({ user, onUserUpdate, onOpenMatches }) {
 
   useEffect(() => {
     // This effect intentionally refreshes server results when location/radius changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (user.latitude != null && user.longitude != null) loadProfiles();
   }, [user.latitude, user.longitude, loadProfiles]);
 
